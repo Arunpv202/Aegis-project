@@ -3,21 +3,21 @@ import CryptoJS from 'crypto-js';
 
 const DB_NAME = 'ZkVotingDB';
 const STORE_NAME = 'secrets';
+const COMMITMENT_STORE = 'commitments';
 
-// Note: DB version incremented to 2 to support schema change
+// Note: DB version incremented to 3 to add commitments store
 export async function initDB() {
-    return openDB(DB_NAME, 2, {
+    return openDB(DB_NAME, 3, {
         upgrade(db, oldVersion, newVersion, transaction) {
-            // If migrating from v1, we might lose data or need complex migration.
-            // For development simplicity, we'll recreate the store if schema doesn't match desire,
-            // but `createObjectStore` throws if it exists.
-
-            if (db.objectStoreNames.contains(STORE_NAME)) {
-                db.deleteObjectStore(STORE_NAME);
+            // Handle secrets store
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME, { keyPath: 'storage_key' });
             }
 
-            // New schema: Key is composite 'storage_key'
-            db.createObjectStore(STORE_NAME, { keyPath: 'storage_key' });
+            // Add commitments store (new in v3)
+            if (!db.objectStoreNames.contains(COMMITMENT_STORE)) {
+                db.createObjectStore(COMMITMENT_STORE, { keyPath: 'storage_key' });
+            }
         },
     });
 }
@@ -78,3 +78,46 @@ export async function getSecrets(election_id, encryptionKey, walletAddress) {
         return null;
     }
 }
+
+// ==================== COMMITMENT STORAGE ====================
+
+export async function storeCommitment(election_id, commitment, encryptionKey, username) {
+    const db = await initDB();
+    const cleanElectionId = election_id.split('_')[0];
+    const storageKey = `${cleanElectionId}_${username}`;
+
+    const encryptedCommitment = encryptData(commitment, encryptionKey);
+
+    await db.put(COMMITMENT_STORE, {
+        storage_key: storageKey,
+        election_id: cleanElectionId,
+        commitment: encryptedCommitment,
+        created_at: new Date().toISOString()
+    });
+    console.log(`[zkStorage] Commitment stored for ${cleanElectionId}`);
+}
+
+export async function getCommitment(election_id, encryptionKey, username) {
+    const db = await initDB();
+    const cleanElectionId = election_id.split('_')[0];
+    const storageKey = `${cleanElectionId}_${username}`;
+
+    const record = await db.get(COMMITMENT_STORE, storageKey);
+    if (!record) {
+        console.warn(`[zkStorage] No commitment found for key: ${storageKey}`);
+        return null;
+    }
+
+    try {
+        const commitment = decryptData(record.commitment, encryptionKey);
+        if (!commitment) {
+            throw new Error('Decryption returned empty result');
+        }
+        console.log(`[zkStorage] Commitment decrypted successfully for ${cleanElectionId}`);
+        return commitment;
+    } catch (err) {
+        console.error(`[zkStorage] Error decrypting commitment for ${cleanElectionId}:`, err);
+        return null;
+    }
+}
+

@@ -1,0 +1,149 @@
+version: "3.8"
+
+services:
+
+  # -------------------------
+  # SIGNER + BOOTNODE
+  # -------------------------
+  node1:
+    image: ethereum/client-go:v1.13.14
+    container_name: geth-node1
+    volumes:
+      - ./nodes/node1:/data
+    command: >
+      --datadir /data
+      --networkid 7777
+      --http
+      --http.addr 0.0.0.0
+      --http.port 8545
+      --http.api eth,net,web3,personal,miner,clique,txpool,debug,admin
+      --allow-insecure-unlock
+      --unlock 0x32ee2b6031a8d780c907c9196fa1a6ccef38d180
+      --password /data/password.txt
+      --mine
+      --miner.etherbase 0x32ee2b6031a8d780c907c9196fa1a6ccef38d180
+      --nat extip:172.30.0.11
+      --config /data/config.toml
+    ports:
+      - "8545:8545"
+    networks:
+      privnet:
+        ipv4_address: 172.30.0.11
+
+  # -------------------------
+  # SIGNER
+  # -------------------------
+  node2:
+    image: ethereum/client-go:v1.13.14
+    container_name: geth-node2
+    volumes:
+      - ./nodes/node2:/data
+    command: >
+      --datadir /data
+      --networkid 7777
+      --bootnodes enode://c9151cae7c889b4ef9b564f8350a85a11a39e5883662fbd54d6d8e592e65673a7b8b1bdb0e31cd501d4ded499a264fcc9aaa689f94e781bc2b5d63aa3a7f5850@172.30.0.11:30303
+      --http
+      --http.addr 0.0.0.0
+      --http.port 8546
+      --http.api eth,net,web3,personal,miner,clique,txpool,debug
+      --allow-insecure-unlock
+      --unlock 0xb348436362E96655c41fcB5aB3fE25DC54C22b66
+      --password /data/password.txt
+      --mine
+      --miner.etherbase 0xb348436362E96655c41fcB5aB3fE25DC54C22b66
+      --nat extip:172.30.0.12
+      --config /data/config.toml
+    networks:
+      privnet:
+        ipv4_address: 172.30.0.12
+
+  # -------------------------
+  # SIGNER
+  # -------------------------
+  node3:
+    image: ethereum/client-go:v1.13.14
+    container_name: geth-node3
+    volumes:
+      - ./nodes/node3:/data
+    command: >
+      --datadir /data
+      --networkid 7777
+      --bootnodes enode://c9151cae7c889b4ef9b564f8350a85a11a39e5883662fbd54d6d8e592e65673a7b8b1bdb0e31cd501d4ded499a264fcc9aaa689f94e781bc2b5d63aa3a7f5850@172.30.0.11:30303
+      --http
+      --http.addr 0.0.0.0
+      --http.port 8547
+      --http.api eth,net,web3,personal,miner,clique,txpool,debug
+      --allow-insecure-unlock
+      --unlock 0x078962a2d159BCC3F982540b021BDDCD192Add7B
+      --password /data/password.txt
+      --mine
+      --miner.etherbase 0x078962a2d159BCC3F982540b021BDDCD192Add7B
+      --nat extip:172.30.0.13
+      --config /data/config.toml
+    networks:
+      privnet:
+        ipv4_address: 172.30.0.13
+
+  # -------------------------
+  # OBSERVER
+  # -------------------------
+  node4:
+    image: ethereum/client-go:v1.13.14
+    container_name: geth-node4
+    volumes:
+      - ./nodes/node4:/data
+    command: >
+      --datadir /data
+      --networkid 7777
+      --bootnodes enode://c9151cae7c889b4ef9b564f8350a85a11a39e5883662fbd54d6d8e592e65673a7b8b1bdb0e31cd501d4ded499a264fcc9aaa689f94e781bc2b5d63aa3a7f5850@172.30.0.11:30303
+      --nat extip:172.30.0.14
+      --syncmode full
+      --config /data/config.toml
+    networks:
+      privnet:
+        ipv4_address: 172.30.0.14
+
+  # -------------------------
+  # OBSERVER
+  # -------------------------
+  node5:
+    image: ethereum/client-go:v1.13.14
+    container_name: geth-node5
+    volumes:
+      - ./nodes/node5:/data
+    command: >
+      --datadir /data
+      --networkid 7777
+      --bootnodes enode://c9151cae7c889b4ef9b564f8350a85a11a39e5883662fbd54d6d8e592e65673a7b8b1bdb0e31cd501d4ded499a264fcc9aaa689f94e781bc2b5d63aa3a7f5850@172.30.0.11:30303
+      --nat extip:172.30.0.15
+      --syncmode full
+      --config /data/config.toml
+    networks:
+      privnet:
+        ipv4_address: 172.30.0.15
+
+  # -------------------------
+  # OBSERVER
+  # -------------------------
+  node6:
+    image: ethereum/client-go:v1.13.14
+    container_name: geth-node6
+    volumes:
+      - ./nodes/node6:/data
+    command: >
+      --datadir /data
+      --networkid 7777
+      --bootnodes enode://c9151cae7c889b4ef9b564f8350a85a11a39e5883662fbd54d6d8e592e65673a7b8b1bdb0e31cd501d4ded499a264fcc9aaa689f94e781bc2b5d63aa3a7f5850@172.30.0.11:30303
+      --nat extip:172.30.0.16
+      --syncmode full
+      --config /data/config.toml
+    networks:
+      privnet:
+        ipv4_address: 172.30.0.16
+
+networks:
+  privnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16

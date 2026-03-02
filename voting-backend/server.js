@@ -32,6 +32,7 @@ app.use('/api/blockexplorer', blockExplorerRoutes);
 // Standalone routes as per prompt requirements
 const { verifyToken } = require('./middleware/authJwt');
 app.post('/api/register', verifyToken, tokenController.registerVoter);
+app.post('/api/verify-face', tokenController.verifyFace);
 app.post('/api/merkle/witness', electionController.getMerkleWitness);
 
 // Sync Database and Start Server

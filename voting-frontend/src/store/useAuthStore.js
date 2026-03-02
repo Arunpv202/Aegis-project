@@ -18,6 +18,7 @@ const useAuthStore = create(
             role: null, // 'admin', 'voter'
             electionId: null,
             merkleRoot: null,
+            commitment: null,
             token: null, // JWT Token for session storage
             isLoading: false,
             error: null,
@@ -74,7 +75,7 @@ const useAuthStore = create(
                 } catch (err) {
                     console.error("Logout failed", err);
                 }
-                set({ user: null, username: null, role: null, electionId: null, merkleRoot: null, token: null });
+                set({ user: null, username: null, role: null, electionId: null, merkleRoot: null, commitment: null, token: null });
                 delete axios.defaults.headers.common['Authorization'];
                 sessionStorage.clear();
             },
@@ -82,6 +83,7 @@ const useAuthStore = create(
             setRole: (role) => set({ role }),
             setElectionId: (id) => set({ electionId: id }),
             setMerkleRoot: (root) => set({ merkleRoot: root }),
+            setCommitment: (c) => set({ commitment: c }),
             clearError: () => set({ error: null }),
         }),
         {
