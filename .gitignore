@@ -1,5 +1,6 @@
 # Node dependencies (ignore everywhere)node_modules/
 /node_modules/
+Blockchain/
 # Logs
 npm-debug.log*
 yarn-debug.log*
