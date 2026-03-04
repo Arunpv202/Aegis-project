@@ -156,6 +156,8 @@ export default function Round2({ electionId, authorityId, dkgState, refresh }) {
                         share_scalar: shareScalar.toString(16),
                         created_at: new Date().toISOString()
                     });
+                    console.log(`[DKG] Saved self-share locally. Skipping backend transmission for target ${target.authority_id}.`);
+                    continue; // Skip appending self-share to backend payload
                 }
 
                 // Encrypt with Shared Key (Scalar Masking)
@@ -237,7 +239,13 @@ export default function Round2({ electionId, authorityId, dkgState, refresh }) {
             }
 
             const res = await fetch(`/api/dkg/shares/${electionId}/${authorityId}`, {
-                headers: { 'Authorization': `Bearer ${token}` },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                },
+                cache: 'no-store',
                 credentials: 'include'
             });
             if (!res.ok) throw new Error("Failed to fetch shares");
@@ -245,7 +253,18 @@ export default function Round2({ electionId, authorityId, dkgState, refresh }) {
             const { shares } = await res.json();
             const L = BigInt('0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed');
 
+            // 1. Load Self-Share from Local DB first
             let finalShare = BigInt(0);
+            const selfShareRecord = await db.get('secrets', `auth_SELF_${electionId}_${username}`);
+
+            if (selfShareRecord && selfShareRecord.share_scalar) {
+                finalShare = BigInt('0x' + selfShareRecord.share_scalar);
+                console.log(`[VSS] Loaded self-share directly from local IndexedDB.`);
+            } else {
+                console.error("[VSS] Critical Error: Cannot find self-share in IndexedDB.");
+                alert("Critical Error: Missing self-share. Ensure you computed shares correctly.");
+                return;
+            }
 
             // [UPDATE] We now rely on the enriched share data from the API
             // which includes sender_pk and sender_commitment from the blockchain.
@@ -324,12 +343,6 @@ export default function Round2({ electionId, authorityId, dkgState, refresh }) {
                     }
                 } else {
                     console.warn(`No commitment found for ${item.from_authority_id}, computation insecure.`);
-                }
-
-                // FIXED: Do NOT skip self-verification/summation. 
-                // The self-share is required for the full polynomial sum.
-                if (String(item.from_authority_id) === String(authorityId)) {
-                    console.log("[VSS] Processing self-share for authority", authorityId);
                 }
 
                 finalShare = (finalShare + decryptedVal) % L;

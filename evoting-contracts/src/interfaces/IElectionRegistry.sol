@@ -29,6 +29,7 @@ interface IElectionRegistry {
         bool completed;
         bool round1Active;
         bool round2Active;
+        bool finalizedDKG;
     }
 
     struct Authority {
@@ -101,14 +102,14 @@ interface IElectionRegistry {
         uint256 endTime,
         uint256 resultTime,
         string[] calldata candidateNames,
-        string[] calldata authorityNames,
-        bytes32 faceDatabaseHash
+        string[] calldata authorityNames
     ) external;
 
     function finalizeElectionSetup(
         string calldata electionId,
         uint256 polynomial_degree,
-        string calldata registrationMerkleRoot
+        string calldata registrationMerkleRoot,
+        bytes32 faceDatabaseHash
     ) external;
 
     function setRound1Active(

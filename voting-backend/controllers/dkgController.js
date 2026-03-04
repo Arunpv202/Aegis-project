@@ -357,7 +357,7 @@ exports.submitRound2 = async (req, res) => {
             }));
 
             await EncryptedShare.bulkCreate(shareRecords);
-            console.log(`[DKG] Stored ${shareRecords.length} encrypted shares in DB.`);
+            console.log(`[DKG] Stored ${shareRecords.length} encrypted shares in DB for opponents.`);
         }
 
         res.json({ message: 'Round 2 submission accepted (Commitments on Chain, Shares in DB).' });
@@ -401,6 +401,7 @@ exports.getShares = async (req, res) => {
             };
         });
 
+        console.log(`[DKG] Returning ${enrichedShares.length} opponent shares for Authority ${authority_id}`);
         res.json({ shares: enrichedShares });
     } catch (error) {
         console.error("Error in getShares:", error);
@@ -582,9 +583,11 @@ exports.computeElectionKeys = async (req, res) => {
             return res.status(403).json({ message: 'Unauthorized: Only election creator can finalize DKG' });
         }
 
-        if (electionDetails.completed && electionDetails.electionPublicKey && electionDetails.electionPublicKey !== '0x') {
-            console.log(`[DKG] (Blockchain) Already Finalized. Returning existing PK.`);
-            return res.json({ message: 'DKG Already Finalized.', election_pk: electionDetails.electionPublicKey });
+        // Guard: If election PK is already set on-chain, don't recompute
+        const existingPK = electionDetails.electionPublicKey;
+        if (existingPK && existingPK !== '0x' && existingPK.length > 2) {
+            console.log(`[DKG] Election PK already exists on chain. Skipping recomputation.`);
+            return res.json({ message: 'DKG Already Finalized.', election_pk: existingPK });
         }
 
         /* [DATABASE DEPRECATION]

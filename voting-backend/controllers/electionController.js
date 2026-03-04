@@ -8,6 +8,7 @@ const ElectionCrypto = db.ElectionCrypto;
 const MerkleTreeService = require('../utils/merkleTree');
 const dkgController = require('./dkgController');
 const blockchainService = require('../utils/blockchainService');
+const { ethers } = require('ethers');
 
 // Helper for Auto Merkle Root Generation
 const generateMerkleRoot = async (election_id) => {
@@ -40,6 +41,34 @@ const generateMerkleRoot = async (election_id) => {
             root = '0x0000000000000000000000000000000000000000000000000000000000000000';
         }
 
+        // ===== FACE DATA MERKLE ROOT =====
+        // Hash each encrypted face descriptor, then build a Merkle root
+        const faceDescriptors = tokens
+            .map(t => t.face_descriptor)
+            .filter(f => f)
+            .sort();
+
+        let faceDatabaseHash = ethers.ZeroHash; // default if no face data
+
+        if (faceDescriptors.length > 0) {
+            // Hash each encrypted descriptor
+            const faceLeaves = faceDescriptors.map(encDesc =>
+                ethers.keccak256(ethers.toUtf8Bytes(encDesc))
+            );
+            console.log(`Debug: ${faceLeaves.length} face descriptor hashes for Merkle Root`);
+
+            // Build Merkle tree from the hashed leaves
+            const faceMerkleService = new MerkleTreeService(faceLeaves);
+            await faceMerkleService.build();
+            const faceRoot = faceMerkleService.getRoot();
+
+            // Convert to bytes32 for the smart contract
+            faceDatabaseHash = ethers.keccak256(ethers.toUtf8Bytes(faceRoot));
+            console.log(`Face Database Hash (bytes32): ${faceDatabaseHash}`);
+        } else {
+            console.log('No face descriptors found, using ZeroHash for faceDatabaseHash.');
+        }
+
         // Fetch Authorities count to dynamically calculate polynomial degree
         const authorities = await blockchainService.getAuthorities(election_id);
         const numAuthorities = authorities ? authorities.length : 1;
@@ -48,9 +77,10 @@ const generateMerkleRoot = async (election_id) => {
         // The blockchain automatically sets threshold = degree + 1 inside finalizeElectionSetup.
         const polynomial_degree = Math.max(1, numAuthorities - 2);
 
-        await blockchainService.finalizeElectionSetup(election_id, polynomial_degree, root);
+        await blockchainService.finalizeElectionSetup(election_id, polynomial_degree, root, faceDatabaseHash);
 
         console.log(`Merkle Root generated and finalized for ${election_id}: ${root}`);
+        console.log(`Face Database Hash: ${faceDatabaseHash}`);
         console.log(`Election Crypto params set: Authorities=${numAuthorities}, Degree=${polynomial_degree} (Blockchain will set Threshold=${polynomial_degree + 1})`);
 
     } catch (error) {
@@ -275,8 +305,7 @@ exports.setupElection = async (req, res) => {
                 resultTime: toUnix(result_time),
                 threshold: 3, // Hardcoded as per request
                 candidateNames: candidateNames,
-                authorityNames: authorityNames,
-                faceDatabaseHash: null // Placeholder if not used yet
+                authorityNames: authorityNames
             };
 
             // Call Blockchain Service

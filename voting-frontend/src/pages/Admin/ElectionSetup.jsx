@@ -101,7 +101,7 @@ export default function ElectionSetup() {
       });
 
       if (completeRes.ok) {
-        alert("Election setup complete! Registration window open for 2 minutes.");
+       // alert("Election setup complete! Registration window open for 2 minutes.");
         navigate("/admin/view-elections");
       } else {
         throw new Error("Failed to complete setup");
@@ -273,7 +273,7 @@ export default function ElectionSetup() {
             className="w-full mt-10 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <CheckCircle size={20} />
-            <span>{loading ? "Starting Registration (2 min timer)..." : "Complete Election Setup"}</span>
+            <span>{loading ? "loading..." : "Complete Election Setup"}</span>
           </button>
         </div>
 

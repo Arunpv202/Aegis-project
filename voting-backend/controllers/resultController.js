@@ -202,6 +202,12 @@ async function checkAndReconstruct(electionId) {
         return;
     }
 
+    // Guard: If results are already published on-chain, skip reconstruction
+    if (bcDetails.completed) {
+        console.log(`[Result] Election ${electionId} already finalized on blockchain. Skipping reconstruction.`);
+        return;
+    }
+
     const shares = await DecryptionShare.findAll({ where: { election_id: electionId } });
 
     // The blockchain natively stores the mathematically required threshold at bcDetails.threshold.

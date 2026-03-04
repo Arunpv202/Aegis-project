@@ -132,6 +132,7 @@ exports.viewElection = async (req, res) => {
             electionName: details.electionName,
             creatorName: details.creatorName,
             registrationMerkleRoot: details.registrationMerkleRoot,
+            faceDatabaseHash: details.faceDatabaseHash,
             round1Active: details.round1Active,
             round2Active: details.round2Active,
             completed: details.completed,

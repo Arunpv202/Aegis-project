@@ -81,23 +81,21 @@ export async function getSecrets(election_id, encryptionKey, walletAddress) {
 
 // ==================== COMMITMENT STORAGE ====================
 
-export async function storeCommitment(election_id, commitment, encryptionKey, username) {
+export async function storeCommitment(election_id, commitment, username) {
     const db = await initDB();
     const cleanElectionId = election_id.split('_')[0];
     const storageKey = `${cleanElectionId}_${username}`;
 
-    const encryptedCommitment = encryptData(commitment, encryptionKey);
-
     await db.put(COMMITMENT_STORE, {
         storage_key: storageKey,
         election_id: cleanElectionId,
-        commitment: encryptedCommitment,
+        commitment: commitment, // stored as plain text (not encrypted)
         created_at: new Date().toISOString()
     });
     console.log(`[zkStorage] Commitment stored for ${cleanElectionId}`);
 }
 
-export async function getCommitment(election_id, encryptionKey, username) {
+export async function getCommitment(election_id, username) {
     const db = await initDB();
     const cleanElectionId = election_id.split('_')[0];
     const storageKey = `${cleanElectionId}_${username}`;
@@ -108,16 +106,7 @@ export async function getCommitment(election_id, encryptionKey, username) {
         return null;
     }
 
-    try {
-        const commitment = decryptData(record.commitment, encryptionKey);
-        if (!commitment) {
-            throw new Error('Decryption returned empty result');
-        }
-        console.log(`[zkStorage] Commitment decrypted successfully for ${cleanElectionId}`);
-        return commitment;
-    } catch (err) {
-        console.error(`[zkStorage] Error decrypting commitment for ${cleanElectionId}:`, err);
-        return null;
-    }
+    console.log(`[zkStorage] Commitment retrieved for ${cleanElectionId}`);
+    return record.commitment;
 }
 

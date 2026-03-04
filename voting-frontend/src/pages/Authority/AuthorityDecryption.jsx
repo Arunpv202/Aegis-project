@@ -220,20 +220,46 @@ export default function AuthorityDecryption() {
                             <p className="text-gray-400 text-sm mt-2">Your share has been verified and stored.</p>
                         </div>
                     ) : (
-                        <button
-                            onClick={handleDecryption}
-                            disabled={status === 'computing'}
-                            className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${status === 'computing' ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20'
-                                }`}
-                        >
-                            {status === 'computing' ? (
-                                <>Processing Crypto...</>
-                            ) : (
-                                <>
-                                    <Lock size={20} /> Calculate & Submit Result
-                                </>
-                            )}
-                        </button>
+                        (() => {
+                            // Check if tally exists and has components
+                            let hasTally = false;
+                            if (election?.encrypted_tally) {
+                                const tally = typeof election.encrypted_tally === 'string'
+                                    ? JSON.parse(election.encrypted_tally)
+                                    : election.encrypted_tally;
+                                hasTally = tally && tally.c1 && tally.c1.length > 0 && tally.c1.some(h => h && h.length > 0);
+                            }
+
+                            if (!hasTally) {
+                                return (
+                                    <div className="text-center p-6 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                                        <Lock size={48} className="text-amber-500 mx-auto mb-4" />
+                                        <h2 className="text-xl font-bold text-amber-400">Tally Computation in Progress</h2>
+                                        <p className="text-gray-400 text-sm mt-2">
+                                            The election has ended, but the secure tally computation is still running.
+                                            Please wait a few minutes and refresh the page.
+                                        </p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <button
+                                    onClick={handleDecryption}
+                                    disabled={status === 'computing'}
+                                    className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${status === 'computing' ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20'
+                                        }`}
+                                >
+                                    {status === 'computing' ? (
+                                        <>Processing Crypto...</>
+                                    ) : (
+                                        <>
+                                            <Lock size={20} /> Calculate & Submit Result
+                                        </>
+                                    )}
+                                </button>
+                            );
+                        })()
                     )}
                 </div>
             </div>

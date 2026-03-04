@@ -121,13 +121,21 @@ export default function RegisterElection() {
 
       setFaceMessage("Starting camera...");
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 640, height: 480 }
-      });
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }
+        });
+      } catch (camErr) {
+        console.warn("[FaceCapture] Preferred constraints failed, retrying with basic constraints:", camErr);
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
       streamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute("playsinline", "true");
+        videoRef.current.setAttribute("webkit-playsinline", "true");
         await videoRef.current.play();
       }
 
@@ -138,7 +146,12 @@ export default function RegisterElection() {
     } catch (err) {
       console.error("[FaceCapture] Error:", err);
       setFaceStatus("error");
-      setFaceMessage("Failed to start camera. Please allow camera access.");
+      const isSecureContext = window.isSecureContext;
+      setFaceMessage(
+        !isSecureContext
+          ? "Camera requires a secure connection (HTTPS). Please access the app over HTTPS."
+          : "Failed to start camera. Please allow camera access in your browser settings."
+      );
     }
   };
 
@@ -266,7 +279,7 @@ export default function RegisterElection() {
       }
 
       await storeSecrets(formData.election_id, { zkSecret }, encryptionKey, username);
-      await storeCommitment(formData.election_id, commitment, encryptionKey, username);
+      await storeCommitment(formData.election_id, commitment, username);
 
       setSuccess("Registration Successful! Redirecting...");
       setTimeout(() => navigate("/user/dashboard"), 1500);

@@ -57,8 +57,7 @@ contract ElectionRegistry is IElectionRegistry {
         uint256 endTime,
         uint256 resultTime,
         string[] calldata candidateNames,
-        string[] calldata authorityNames,
-        bytes32 faceDatabaseHash
+        string[] calldata authorityNames
     ) external override {
 
         Election storage e = elections[electionId];
@@ -68,7 +67,6 @@ contract ElectionRegistry is IElectionRegistry {
         e.startTime = startTime;
         e.endTime = endTime;
         e.resultTime = resultTime;
-        e.faceDatabaseHash = faceDatabaseHash;
 
         for (uint i = 0; i < candidateNames.length; i++) {
             e.candidateNames.push(candidateNames[i]);
@@ -94,7 +92,8 @@ contract ElectionRegistry is IElectionRegistry {
     function finalizeElectionSetup(
         string calldata electionId,
         uint256 polynomial_degree,
-        string calldata registrationMerkleRoot
+        string calldata registrationMerkleRoot,
+        bytes32 faceDatabaseHash
     ) external override {
 
         Election storage e = elections[electionId];
@@ -103,6 +102,7 @@ contract ElectionRegistry is IElectionRegistry {
         e.degree = polynomial_degree;
         e.threshold = polynomial_degree + 1;
         e.registrationMerkleRoot = registrationMerkleRoot;
+        e.faceDatabaseHash = faceDatabaseHash;
         e.setupDone = true;
 
         emit ElectionSetupCompleted(electionId);
@@ -169,7 +169,9 @@ contract ElectionRegistry is IElectionRegistry {
         string calldata electionId,
         bytes calldata electionPublicKey
     ) external override {
+        require(elections[electionId].finalizedDKG == false, "DKG already finalized");
         elections[electionId].electionPublicKey = electionPublicKey;
+        elections[electionId].finalizedDKG = true;
         emit ElectionPublicKeySet(electionId);
     }
 

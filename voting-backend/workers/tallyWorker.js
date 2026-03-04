@@ -45,8 +45,8 @@ const runTallyWorker = () => {
 
                     const now = new Date();
 
-                    // Check if Blockchain End Time is strictly crossed
-                    if (nowSec >= endUnix && !bcDetails.completed) {
+                    // Check if Blockchain End Time + 2 Minute Buffer is strictly crossed
+                    if (nowSec >= (endUnix + 120) && !bcDetails.completed) {
                         // Check if a REAL (non-empty) tally already exists on chain.
                         // An empty/blank tally has c1 entries that are all empty strings after stripping '0x'.
                         const existingTally = await blockchainService.getEncryptedTally(electionId);

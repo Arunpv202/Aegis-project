@@ -76,13 +76,21 @@ export default function FaceVerification() {
 
       setMessage("Starting camera...");
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 640, height: 480 }
-      });
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }
+        });
+      } catch (camErr) {
+        console.warn("[FaceVerification] Preferred constraints failed, retrying with basic constraints:", camErr);
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
       streamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute("playsinline", "true");
+        videoRef.current.setAttribute("webkit-playsinline", "true");
         await videoRef.current.play();
       }
 
@@ -100,7 +108,12 @@ export default function FaceVerification() {
     } catch (err) {
       console.error("[FaceVerification] Init error:", err);
       setStatus("error");
-      setMessage("Failed to start camera. Please allow camera access and try again.");
+      const isSecureContext = window.isSecureContext;
+      setMessage(
+        !isSecureContext
+          ? "Camera requires a secure connection (HTTPS). Please access the app over HTTPS."
+          : "Failed to start camera. Please allow camera access in your browser settings."
+      );
     }
   };
 
@@ -306,7 +319,7 @@ export default function FaceVerification() {
           <div className="flex gap-3 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl items-center mb-8 text-left">
             <Info size={18} className="text-emerald-400 shrink-0" />
             <p className={`text-[11px] leading-tight ${status === "error" ? "text-red-400" : status === "done" ? "text-emerald-400" :
-                status === "verifying" ? "text-indigo-400" : "text-gray-400"
+              status === "verifying" ? "text-indigo-400" : "text-gray-400"
               }`}>{message}</p>
           </div>
 

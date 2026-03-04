@@ -125,24 +125,7 @@ export default function RegisterUsers() {
               </div>
             </div>
 
-            {/* FACE UPLOAD FIELD (Visual only for now per prompt not mentioning facial rec backend yet, just registration token) */}
-            <div className="group">
-              <label className="block text-xs font-bold uppercase tracking-[0.2em] text-gray-500 mb-2 ml-1">Biometric Enrollment (Face)</label>
-              <div className="relative border-2 border-dashed border-white/10 rounded-xl p-8 bg-black/20 hover:bg-black/40 hover:border-emerald-500/50 transition-all cursor-pointer text-center group">
-                <input
-                  type="file"
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  accept="image/*"
-                />
-                <div className="flex flex-col items-center gap-2">
-                  <div className="p-3 bg-white/5 rounded-full text-gray-500 group-hover:text-emerald-400 transition-colors">
-                    <Camera size={24} />
-                  </div>
-                  <p className="text-sm text-gray-400 font-medium">Click to capture or upload image</p>
-                  <p className="text-[10px] text-gray-600 uppercase tracking-tighter">PNG, JPG up to 5MB</p>
-                </div>
-              </div>
-            </div>
+
           </div>
 
           {/* ADD USER BUTTON */}

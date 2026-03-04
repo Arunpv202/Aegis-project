@@ -46,17 +46,13 @@ class BlockchainService {
     async setupElectionOnChain(data) {
         console.log(`[Blockchain] Setting up Election (Phase 2): ${data.electionId}`);
         try {
-            const faceDatabaseHash = data.faceDatabaseHash || ethers.ZeroHash;
-
-
             const tx = await this.contract.setupElection(
                 data.electionId,
                 data.startTime,
                 data.endTime,
                 data.resultTime,
                 data.candidateNames,
-                data.authorityNames, // List of other authorities (excluding admin/creator)
-                faceDatabaseHash
+                data.authorityNames // List of other authorities (excluding admin/creator)
             );
 
             console.log(`[Blockchain] Tx Sent: ${tx.hash}`);
@@ -196,13 +192,14 @@ class BlockchainService {
         }
     }
 
-    async finalizeElectionSetup(electionId, polynomial_degree, registrationMerkleRoot) {
+    async finalizeElectionSetup(electionId, polynomial_degree, registrationMerkleRoot, faceDatabaseHash) {
         console.log(`[Blockchain] Finalizing Election Setup for: ${electionId}`);
         try {
             const tx = await this.contract.finalizeElectionSetup(
                 electionId,
                 polynomial_degree,
-                registrationMerkleRoot
+                registrationMerkleRoot,
+                faceDatabaseHash || ethers.ZeroHash
             );
             console.log(`[Blockchain] Tx Sent: ${tx.hash}`);
             await tx.wait();

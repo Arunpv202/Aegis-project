@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import CryptoJS from "crypto-js";
 import {
   ArrowLeft,
   PlayCircle,
@@ -12,8 +11,6 @@ import {
   Calendar,
   Lock,
   ChevronRight,
-  KeyRound,
-  X,
   Loader2,
   AlertCircle
 } from "lucide-react";
@@ -32,13 +29,8 @@ export default function ExistingElections() {
     completed: []
   });
   const [loading, setLoading] = useState(true);
-
-  // Password popup state
-  const [showPasswordPopup, setShowPasswordPopup] = useState(false);
-  const [popupPassword, setPopupPassword] = useState("");
-  const [popupElectionId, setPopupElectionId] = useState(null);
-  const [popupLoading, setPopupLoading] = useState(false);
-  const [popupError, setPopupError] = useState(null);
+  const [enterLoading, setEnterLoading] = useState(null); // electionId being processed
+  const [enterError, setEnterError] = useState(null);
 
   const setElectionId = useAuthStore(state => state.setElectionId);
   const setMerkleRoot = useAuthStore(state => state.setMerkleRoot);
@@ -111,64 +103,42 @@ export default function ExistingElections() {
     fetchElections();
   }, [username]);
 
-  /* ---- Password Popup Handlers ---- */
+  /* ---- Enter Election Handler (no password needed) ---- */
 
-  const handleEnterElection = (electionId) => {
-    setPopupElectionId(electionId);
-    setPopupPassword("");
-    setPopupError(null);
-    setShowPasswordPopup(true);
-  };
-
-  const handlePasswordSubmit = async () => {
-    if (!popupPassword) {
-      setPopupError("Password is required.");
-      return;
-    }
-
-    setPopupLoading(true);
-    setPopupError(null);
+  const handleEnterElection = async (electionId) => {
+    setEnterLoading(electionId);
+    setEnterError(null);
 
     try {
-      // 1. Derive encryption key (same PBKDF2 as registration)
-      const saltInput = `${username}-${popupElectionId}-VOTING_APP_SCURE_SALT`;
-      const encryptionKey = CryptoJS.PBKDF2(popupPassword, saltInput, {
-        keySize: 256 / 32,
-        iterations: 10000
-      }).toString();
-
-      // 2. Decrypt commitment from IndexedDB
-      const commitment = await getCommitment(popupElectionId, encryptionKey, username);
+      // 1. Get commitment directly from IndexedDB (plain text, no decryption)
+      const commitment = await getCommitment(electionId, username);
       if (!commitment) {
-        throw new Error("Decryption failed. Wrong password or no credentials found.");
+        throw new Error("No credentials found for this election. Please register first.");
       }
 
-      // 3. Merkle root verification inline
-      const commRes = await fetch(`/api/elections/${popupElectionId}/commitments`);
+      // 2. Fetch Merkle data
+      const commRes = await fetch(`/api/elections/${electionId}/commitments`);
       const commData = await commRes.json();
 
       if (!commData.success) {
         throw new Error("Failed to fetch election commitments.");
       }
 
-      // 4. Store verified data in auth store
-      setElectionId(popupElectionId);
+      // 3. Store in auth store
+      setElectionId(electionId);
       setCommitment(commitment);
       setMerkleRoot(commData.merkle_root);
 
-      console.log("[ExistingElections] Commitment decrypted, Merkle data loaded. Navigating to face verification.");
+      console.log("[ExistingElections] Commitment loaded, navigating to face verification.");
 
-      setShowPasswordPopup(false);
-      setPopupPassword("");
-
-      // 5. Navigate directly to face verification (skipping EnterElection)
+      // 4. Navigate directly to face verification
       navigate("/user/face-verification");
 
     } catch (err) {
-      console.error("[ExistingElections] Password flow error:", err);
-      setPopupError(err.message || "Decryption failed. Please try again.");
+      console.error("[ExistingElections] Enter election error:", err);
+      setEnterError(err.message || "Failed to enter election.");
     } finally {
-      setPopupLoading(false);
+      setEnterLoading(null);
     }
   };
 
@@ -194,6 +164,14 @@ export default function ExistingElections() {
           </div>
         </header>
 
+        {/* Error Banner */}
+        {enterError && (
+          <div className="max-w-xl mx-auto mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm flex items-center gap-3">
+            <AlertCircle size={18} />
+            <span>{enterError}</span>
+          </div>
+        )}
+
         {/* Centered Status Tabs */}
         <div className="flex justify-center mb-16">
           <div className="flex gap-2 p-1.5 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/5 w-full max-w-xl shadow-2xl">
@@ -213,78 +191,12 @@ export default function ExistingElections() {
                 type={activeTab}
                 navigate={navigate}
                 onEnterElection={handleEnterElection}
+                enterLoading={enterLoading}
               />
             ))}
           </AnimatePresence>
         </motion.div>
       </div>
-
-      {/* Password Popup Modal */}
-      <AnimatePresence>
-        {showPasswordPopup && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-slate-900 border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full relative shadow-2xl"
-            >
-              <button
-                onClick={() => { setShowPasswordPopup(false); setPopupError(null); }}
-                className="absolute top-6 right-6 text-gray-500 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full"
-              >
-                <X size={24} />
-              </button>
-
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-indigo-500/30">
-                  <KeyRound size={32} />
-                </div>
-                <h3 className="text-2xl font-bold mb-2">Enter Password</h3>
-                <p className="text-gray-400 text-sm">
-                  Enter your encryption password to decrypt your credentials for election <strong className="text-white font-mono">{popupElectionId}</strong>.
-                </p>
-              </div>
-
-              {popupError && (
-                <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm flex items-center gap-2">
-                  <AlertCircle size={16} />
-                  {popupError}
-                </div>
-              )}
-
-              <div className="mb-8 relative group">
-                <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 transition-colors" size={20} />
-                <input
-                  type="password"
-                  autoFocus
-                  className="w-full bg-black/40 border border-white/20 rounded-xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all font-mono text-lg placeholder:text-gray-700"
-                  placeholder="Enter password"
-                  value={popupPassword}
-                  onChange={(e) => setPopupPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !popupLoading && handlePasswordSubmit()}
-                  disabled={popupLoading}
-                />
-              </div>
-
-              <button
-                onClick={handlePasswordSubmit}
-                disabled={popupLoading}
-                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-lg transition-colors shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {popupLoading ? (
-                  <Loader2 className="animate-spin" size={20} />
-                ) : (
-                  <>
-                    <span>Decrypt & Proceed</span>
-                    <ChevronRight size={20} />
-                  </>
-                )}
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -301,11 +213,12 @@ function TabButton({ active, onClick, icon, label }) {
   );
 }
 
-function ElectionCard({ election, type, navigate, onEnterElection }) {
+function ElectionCard({ election, type, navigate, onEnterElection, enterLoading }) {
   const isOngoing = type === "ongoing";
   const isUpcoming = type === "upcoming";
   const isCompleted = type === "completed";
   const { my_role, authority_id } = election;
+  const isLoading = enterLoading === election.id;
 
   const showEnterElection = isOngoing && (my_role === 'voter' || my_role === 'both');
   const showCalculateResult = isCompleted && (my_role === 'authority' || my_role === 'both');
@@ -384,10 +297,17 @@ function ElectionCard({ election, type, navigate, onEnterElection }) {
               showEnterElection ? (
                 <button
                   onClick={() => onEnterElection(election.id)}
-                  className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 group/btn relative overflow-hidden"
+                  disabled={isLoading}
+                  className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 group/btn relative overflow-hidden disabled:opacity-50"
                 >
-                  <span>Enter Election</span>
-                  <ChevronRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
+                  {isLoading ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <>
+                      <span>Enter Election</span>
+                      <ChevronRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
+                    </>
+                  )}
                 </button>
               ) : (
                 /* Ongoing but not voter (Authority only) */

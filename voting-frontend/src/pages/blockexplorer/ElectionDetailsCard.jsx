@@ -57,7 +57,7 @@ export default function ElectionDetailsCard({ election, authorities = [] }) {
 
     const {
         electionId, electionName, creatorName,
-        registrationMerkleRoot, round1Active, round2Active, completed,
+        registrationMerkleRoot, faceDatabaseHash, round1Active, round2Active, completed,
         startTime, endTime, numAuthorities, threshold,
         voteCount, encryptedTallyTxHash, encryptedTallyData, electionPublicKey, candidates = [],
     } = election;
@@ -97,6 +97,7 @@ export default function ElectionDetailsCard({ election, authorities = [] }) {
             {/* Hashes */}
             <div className="flex flex-col gap-2 mb-4">
                 <HashRow label="Registration Merkle Root" value={registrationMerkleRoot} color="text-violet-400" />
+                <HashRow label="Face Database Merkle Root" value={faceDatabaseHash} color="text-amber-400" />
                 {electionPublicKey && (
                     <HashRow label="Election Public Key (Joint Key)" value={electionPublicKey} color="text-sky-400" />
                 )}
