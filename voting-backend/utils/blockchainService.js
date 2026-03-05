@@ -7,7 +7,7 @@ const path = require('path');
 // Configuration
 const RPC_URL = 'http://127.0.0.1:8545';
 const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY; // Ensure this is set in .env
-const CONTRACT_ADDRESS = '0x717a3ce015a2933d26090bae53e7dd105058e820'; // UPDATED ADDRESS
+const CONTRACT_ADDRESS = '0x717A3cE015A2933D26090BaE53e7dD105058e820'; // UPDATED ADDRESS
 
 // Load ABI
 const CONTRACT_ABI = JSON.parse(fs.readFileSync(path.join(__dirname, '../contracts/ElectionRegistry.abi.json'), 'utf-8')).abi;
@@ -16,7 +16,8 @@ class BlockchainService {
     constructor() {
         this.provider = new ethers.JsonRpcProvider(RPC_URL);
         this.wallet = new ethers.Wallet(DEPLOYER_PRIVATE_KEY, this.provider);
-        this.contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, this.wallet);
+        this.nonceManager = new ethers.NonceManager(this.wallet);
+        this.contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, this.nonceManager);
     }
 
     // New: Phase 1 Creation

@@ -278,8 +278,9 @@ export default function RegisterElection() {
         throw new Error(errData.message || "Registration failed");
       }
 
-      await storeSecrets(formData.election_id, { zkSecret }, encryptionKey, username);
-      await storeCommitment(formData.election_id, commitment, username);
+      const cleanElectionId = formData.election_id.trim();
+      await storeSecrets(cleanElectionId, { zkSecret }, encryptionKey, username);
+      await storeCommitment(cleanElectionId, commitment, username);
 
       setSuccess("Registration Successful! Redirecting...");
       setTimeout(() => navigate("/user/dashboard"), 1500);

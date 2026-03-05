@@ -337,17 +337,7 @@ exports.submitRound2 = async (req, res) => {
 
         const fromAuthorityId = myAuth.authorityId;
 
-        // 3. Submit Commitments to BLOCKCHAIN
-        // Ensure 0x prefix for Ethers.js
-        const sanitizedCommitments = commitments.map(c => c.startsWith('0x') ? c : '0x' + c);
-
-        await blockchainService.submitDKGRound2({
-            electionId: election_id,
-            fromAuthorityId: fromAuthorityId,
-            commitments: sanitizedCommitments
-        });
-
-        // 4. Store Encrypted Shares in DATABASE (as requested)
+        // 3. Store Encrypted Shares in DATABASE FIRST (Fix Race Condition)
         if (shares && Array.isArray(shares) && shares.length > 0) {
             const shareRecords = shares.map(s => ({
                 election_id,
@@ -360,7 +350,17 @@ exports.submitRound2 = async (req, res) => {
             console.log(`[DKG] Stored ${shareRecords.length} encrypted shares in DB for opponents.`);
         }
 
-        res.json({ message: 'Round 2 submission accepted (Commitments on Chain, Shares in DB).' });
+        // 4. Submit Commitments to BLOCKCHAIN
+        // Ensure 0x prefix for Ethers.js
+        const sanitizedCommitments = commitments.map(c => c.startsWith('0x') ? c : '0x' + c);
+
+        await blockchainService.submitDKGRound2({
+            electionId: election_id,
+            fromAuthorityId: fromAuthorityId,
+            commitments: sanitizedCommitments
+        });
+
+        res.json({ message: 'Round 2 submission accepted (Shares in DB, Commitments on Chain).' });
 
     } catch (error) {
         console.error(`[DKG] Error submitRound2:`, error);

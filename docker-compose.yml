@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mariadb:10-alpine
+    # Deliberately NOT mounting a volume.
+    # The requirement is: "dont use volume everything is stored in docker."
+    # WARNING: All local database data will be lost when the container is deleted!
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-password}
+      MYSQL_DATABASE: ${DB_NAME:-voting_db}
+    ports:
+      - "3307:3306"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  backend:
+    build:
+      context: ./voting-backend
+      dockerfile: Dockerfile
+    environment:
+      - DB_HOST=mysql
+      - DB_USER=${DB_USER:-root}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_NAME=${DB_NAME:-voting_db}
+      - DB_DIALECT=${DB_DIALECT:-mysql}
+      - PORT=5000
+      # Pass through required secrets from the original .env
+      - JWT_SECRET=${JWT_SECRET:-01c35bf208f30f91e500a3f3b5a636b0e5e9a53eafb0bc0dd9a73deb4ef64037ad9ad65d54a6621866e7fdd2e8b0b73a59d5f2046ddf7fc8df617a64e2037698}
+      - DEPLOYER_PRIVATE_KEY=${DEPLOYER_PRIVATE_KEY:-0x1576a9d1c3aa8f98b6871f516acc97d8821948244e3f3f7591970e309e4e50b5}
+      - FACE_DATA_ENCRYPTION_KEY=${FACE_DATA_ENCRYPTION_KEY:-a4f8c2e91d3b7a5608e4f2c1d9b3a7560e8f4c2a1d9b3e7560a8f4c2e1d9b3a7}
+    ports:
+      - "5001:5000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./voting-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8080" # Map host 8081 to container unprivileged 8080
+    depends_on:
+      - backend
+    restart: unless-stopped

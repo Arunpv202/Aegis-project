@@ -4,7 +4,7 @@ import CryptoJS from "crypto-js";
 import { ristretto255 } from '@noble/curves/ed25519.js';
 import { initDB, encryptData } from '../../../utils/zkStorage';
 import useAuthStore from '../../../store/useAuthStore';
-import { X, KeyRound, ArrowRight, ShieldCheck, Lock } from "lucide-react";
+import { X, KeyRound, ArrowRight, ShieldCheck, Lock, Network, Send, Puzzle, Layers, Shield, CheckCircle2, Activity } from "lucide-react";
 
 // Helper for hex conversion
 function bytesToHex(bytes) {
@@ -251,6 +251,21 @@ export default function Round2({ electionId, authorityId, dkgState, refresh }) {
             if (!res.ok) throw new Error("Failed to fetch shares");
 
             const { shares } = await res.json();
+
+            // Debug Logs: Verify backend shares are populated correctly
+            console.log(`[DKG Debug] Fetched ${shares.length} opponent shares from backend.`);
+            if (shares.length > 0) {
+                console.log("[DKG Debug] Raw Share Data Sample:");
+                shares.forEach((s, idx) => {
+                    console.log(`   Share ${idx + 1} from Auth ${s.from_authority_id}: 
+        - Encrypted Share Data: ${s.encrypted_share ? s.encrypted_share.substring(0, 20) + '...' : 'NULL'}
+        - Sender PK: ${s.sender_pk ? 'EXISTS' : 'NULL'}
+        - Sender Commitment: ${s.sender_commitment ? 'EXISTS' : 'NULL'}`);
+                });
+            } else {
+                console.warn("[DKG Debug] WARNING: Fetched 0 shares from backend!");
+            }
+
             const L = BigInt('0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed');
 
             // 1. Load Self-Share from Local DB first
@@ -414,62 +429,163 @@ export default function Round2({ electionId, authorityId, dkgState, refresh }) {
     }, [electionId, username]);
 
     return (
-        <div className="text-center">
-            <h3 className="text-lg font-bold uppercase tracking-wider text-purple-500 mb-6">Round 2: Share Distribution</h3>
-
-            <div className="mb-4 text-sm text-gray-400">
-                <p>Status: <span className="text-white font-mono">{dkgState?.status}</span></p>
-                <p>Degree: <span className="text-white font-mono">{dkgState?.polynomial_degree}</span></p>
-                <p>Peers: <span className="text-white font-mono">{peers.length}</span></p>
+        <div className="text-center max-w-3xl mx-auto">
+            <div className="mb-10 content-center flex flex-col items-center">
+                <div className="w-16 h-16 bg-purple-500/20 text-purple-400 rounded-2xl flex items-center justify-center mb-4 border border-purple-500/30 shadow-lg shadow-purple-500/20">
+                    <Network size={32} />
+                </div>
+                <h3 className="text-2xl font-bold uppercase tracking-wider text-white mb-2">Round 2: The Web of Trust</h3>
+                <p className="text-gray-400 text-sm leading-relaxed max-w-xl">
+                    In this phase, you are building the Master Election Key. You will split your secret into <span className="text-purple-400 font-bold">{peers.length || 0}</span> encrypted puzzle pieces and trade them with the other authorities.
+                </p>
             </div>
 
-            {status === 'pending' && dkgState?.status === 'round2' && (
-                <button
-                    onClick={handleComputeAndSubmit}
-                    className="px-8 py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl shadow-lg shadow-purple-600/20 transition-all transform hover:scale-105"
-                >
-                    Compute & Distribute Shares
-                </button>
-            )}
-
-            {status === 'computing' && <p className="text-purple-400 animate-pulse font-mono">Computing Polynomials & Encrypting...</p>}
-
-            {(status === 'submitted' || dkgState?.status === 'completed' || dkgState?.allRound2Done) && finalStatus !== 'done' && (
-                <div className="mt-8 animate-slideUp">
-                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-900/50 p-4 rounded-xl border border-white/5">
-                        <div className="text-left">
-                            <h4 className="text-blue-300 font-bold mb-1">Finalize Calculation</h4>
-                            <p className="text-gray-400 text-xs">
-                                {dkgState?.status === 'completed' || dkgState?.allRound2Done
-                                    ? "All authorities submitted. Safe to compute."
-                                    : "Warning: Calculate only after ALL authorities have submitted."}
-                            </p>
-                        </div>
-                        <button
-                            onClick={handleCalculateSecret}
-                            disabled={!dkgState?.allRound2Done && dkgState?.status !== 'completed'}
-                            className={`px-6 py-3 font-bold rounded-xl shadow-lg transition-all transform ${dkgState?.status === 'completed' || dkgState?.allRound2Done
-                                ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20 hover:scale-105"
-                                : "bg-gray-700 text-gray-500 cursor-not-allowed opacity-50 border border-white/5"
-                                }`}
-                        >
-                            Calculate My Secret
-                        </button>
+            {/* Status Panel */}
+            <div className="flex flex-wrap justify-center gap-4 mb-8">
+                <div className="bg-slate-900/60 border border-white/5 rounded-lg px-4 py-3 flex items-center gap-3">
+                    <Activity className="text-blue-400" size={18} />
+                    <div className="text-left">
+                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Network Status</p>
+                        <p className="text-sm font-mono text-white flex items-center gap-2">
+                            {dkgState?.status}
+                            {dkgState?.status === 'round2' && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>}
+                        </p>
                     </div>
                 </div>
+                <div className="bg-slate-900/60 border border-white/5 rounded-lg px-4 py-3 flex items-center gap-3">
+                    <Layers className="text-purple-400" size={18} />
+                    <div className="text-left">
+                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Polynomial Degree</p>
+                        <p className="text-sm font-mono text-white">{dkgState?.polynomial_degree}</p>
+                    </div>
+                </div>
+                <div className="bg-slate-900/60 border border-white/5 rounded-lg px-4 py-3 flex items-center gap-3">
+                    <Network className="text-emerald-400" size={18} />
+                    <div className="text-left">
+                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Connected Peers</p>
+                        <p className="text-sm font-mono text-white">{peers.length}</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Phase 1: Distribute */}
+            {status === 'pending' && dkgState?.status === 'round2' && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8 p-6 bg-gradient-to-b from-purple-900/20 to-transparent border border-purple-500/20 rounded-2xl">
+                    <div className="flex justify-center mb-6 relative h-24 w-full">
+                        {/* Visualization of sending out pieces */}
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center z-10 shadow-[0_0_20px_rgba(147,51,234,0.5)]">
+                            <span className="text-white text-xs font-bold">You</span>
+                        </div>
+                        {peers.slice(0, 5).map((p, i) => {
+                            const angle = (i / Math.min(peers.length, 5)) * Math.PI * 2;
+                            const x = Math.cos(angle) * 60;
+                            const y = Math.sin(angle) * 30;
+                            return (
+                                <motion.div
+                                    key={i}
+                                    className="absolute left-1/2 top-1/2 w-8 h-8 bg-slate-800 rounded-full border border-purple-500/30 flex items-center justify-center"
+                                    initial={{ x: 0, y: 0, opacity: 0 }}
+                                    animate={{ x, y, opacity: 1 }}
+                                    transition={{ delay: 0.2 + (i * 0.1), duration: 0.5, type: 'spring' }}
+                                    style={{ marginLeft: '-16px', marginTop: '-16px' }}
+                                >
+                                    <span className="text-purple-300 text-[10px]">{String(p.authority_id).substring(0, 2)}</span>
+                                </motion.div>
+                            )
+                        })}
+                    </div>
+
+                    <button
+                        onClick={handleComputeAndSubmit}
+                        className="w-full sm:w-auto px-8 py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl shadow-lg shadow-purple-600/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2 mx-auto"
+                    >
+                        <Send size={18} />
+                        Compute & Distribute Shares
+                    </button>
+                    <p className="mt-4 text-xs text-gray-400">
+                        This mathematically splits your secret and securely encrypts exactly one piece for each peer.
+                    </p>
+                </motion.div>
             )}
 
-            {dkgState?.status === 'round2' && status === 'pending' && (
-                <div className="mt-8 text-xs text-gray-500">
-                    <p>Tip: Ensure you have at least 1 peer before computing.</p>
-                </div>
+            {status === 'computing' && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-8">
+                    <div className="flex justify-center items-center h-16 mb-4 space-x-2">
+                        {[0, 1, 2].map(i => (
+                            <motion.div
+                                key={i}
+                                className="w-3 h-3 bg-purple-500 rounded-full"
+                                animate={{ y: [-10, 10, -10], opacity: [0.5, 1, 0.5] }}
+                                transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
+                            />
+                        ))}
+                    </div>
+                    <p className="text-purple-400 font-mono text-sm">Evaluating Polynomials & Encrypting Shares...</p>
+                </motion.div>
+            )}
+
+            {/* Waiting State (If submitted but not all done) */}
+            {status === 'submitted' && (!dkgState?.allRound2Done && dkgState?.status !== 'completed') && finalStatus !== 'done' && (
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-slate-900/70 py-8 px-6 rounded-2xl border border-white/5 max-w-lg mx-auto">
+                    <div className="w-16 h-16 border-4 border-slate-700 border-t-purple-500 rounded-full animate-spin mx-auto mb-4"></div>
+                    <h4 className="text-white font-bold text-lg mb-2">Pieces Distributed</h4>
+                    <p className="text-gray-400 text-sm">Now waiting for the other authorities to compute and send their pieces back to you.</p>
+                    <div className="mt-6 bg-black/40 rounded-lg p-3 inline-block">
+                        <p className="text-xs text-purple-400 font-mono">Standby for Network Synchronization...</p>
+                    </div>
+                </motion.div>
+            )}
+
+            {/* Phase 2: Finalize */}
+            {((dkgState?.allRound2Done || dkgState?.status === 'completed') && finalStatus !== 'done') && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8 bg-gradient-to-tr from-blue-900/30 to-purple-900/10 p-1 rounded-2xl">
+                    <div className="bg-slate-900 p-6 md:p-8 rounded-xl border border-blue-500/20">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4 text-blue-400">
+                                <Puzzle size={32} />
+                            </div>
+                            <h4 className="text-white font-bold text-xl mb-2">Network Synchronized!</h4>
+                            <p className="text-gray-400 text-sm max-w-md mx-auto mb-8">
+                                You have received all puzzle pieces from the network. It's time to decrypt them, verify their mathematical validity (Feldman VSS), and assemble your final share.
+                            </p>
+
+                            <button
+                                onClick={handleCalculateSecret}
+                                className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-600/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2 mx-auto"
+                            >
+                                <KeyRound size={20} />
+                                Assemble Your Master Key
+                            </button>
+                        </div>
+                    </div>
+                </motion.div>
             )}
 
             {finalStatus === 'done' && (
-                <div className="mt-6 bg-blue-500/10 p-6 rounded-xl border border-blue-500/20 inline-block">
-                    <p className="text-blue-400 font-bold text-xl">Secret Calculated & Stored</p>
-                    <p className="text-gray-400 text-sm mt-2">Your share is encrypted and saved securely.</p>
-                </div>
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="mt-8 bg-gradient-to-r from-emerald-500/10 to-blue-500/10 p-8 rounded-2xl border border-emerald-500/20 max-w-lg mx-auto">
+                    <div className="flex justify-center mb-6">
+                        <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+                            <ShieldCheck size={40} />
+                        </div>
+                    </div>
+                    <h4 className="text-white font-bold text-2xl mb-2">Master Key Assembled</h4>
+                    <p className="text-emerald-400 font-medium mb-6">You are now ready to decrypt votes.</p>
+
+                    <div className="bg-black/40 rounded-xl p-4 text-left border border-white/5 space-y-3">
+                        <div className="flex items-center gap-3">
+                            <CheckCircle2 size={16} className="text-emerald-500" />
+                            <p className="text-xs text-gray-300">All inbound shares cryptographically verified</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <CheckCircle2 size={16} className="text-emerald-500" />
+                            <p className="text-xs text-gray-300">Final share assembled and tested</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Lock size={16} className="text-emerald-500" />
+                            <p className="text-xs text-gray-300">Encrypted with your personal secure password</p>
+                        </div>
+                    </div>
+                </motion.div>
             )}
 
             {/* Password Modal */}

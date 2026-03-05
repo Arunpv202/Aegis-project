@@ -3,9 +3,8 @@ import { ristretto255, ed25519 } from '@noble/curves/ed25519.js';
 import CryptoJS from "crypto-js";
 import useAuthStore from '../../../store/useAuthStore';
 import { initDB } from '../../../utils/zkStorage';
-
-
-
+import { motion } from 'framer-motion';
+import { Shield, Fingerprint, Lock, CheckCircle2, Server, Key } from 'lucide-react';
 
 // Helper for hex conversion
 function bytesToHex(bytes) {
@@ -143,27 +142,81 @@ export default function Round1({ electionId, dkgState, refresh }) {
     };
 
     return (
-        <div className="text-center">
-            <h3 className="text-lg font-bold uppercase tracking-wider text-indigo-500 mb-6">Round 1: Public Key Commitment</h3>
-
-
+        <div className="text-center max-w-2xl mx-auto">
+            <div className="mb-8">
+                <div className="w-16 h-16 bg-indigo-500/20 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-500/30 shadow-lg shadow-indigo-500/20">
+                    <Fingerprint size={32} />
+                </div>
+                <h3 className="text-2xl font-bold uppercase tracking-wider text-white mb-2">Round 1: Digital Identity</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                    To participate in the election setup, you need to create a secure digital lock and key.
+                    Your <span className="text-indigo-400 font-semibold">Secret Key</span> will be generated and safely stored <strong>only on this device</strong>.
+                    Your <span className="text-blue-400 font-semibold">Public Badge</span> will be sent to the network.
+                </p>
+            </div>
 
             {status === 'pending' && (
-                <button
-                    onClick={handleGenerateAndSubmit}
-                    className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/20"
-                >
-                    Generate & Submit Public Key
-                </button>
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 text-left">
+                        <div className="bg-slate-900/50 p-4 border border-white/5 rounded-xl flex items-start space-x-3">
+                            <Lock className="text-indigo-400 mt-1" size={20} />
+                            <div>
+                                <h4 className="text-white font-bold text-sm">Local Generation</h4>
+                                <p className="text-xs text-gray-500 mt-1">Uses your browser's secure crypto engine to create random bytes.</p>
+                            </div>
+                        </div>
+                        <div className="bg-slate-900/50 p-4 border border-white/5 rounded-xl flex items-start space-x-3">
+                            <Shield className="text-emerald-400 mt-1" size={20} />
+                            <div>
+                                <h4 className="text-white font-bold text-sm">Zero-Knowledge Proof</h4>
+                                <p className="text-xs text-gray-500 mt-1">Mathematically proves locally that you own the key.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleGenerateAndSubmit}
+                        className="w-full flex items-center justify-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-lg rounded-xl transition-all shadow-lg shadow-indigo-600/20 transform hover:scale-[1.02]"
+                    >
+                        <Key size={20} />
+                        Generate & Submit
+                    </button>
+                    <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
+                        <Lock size={12} />
+                        <span>256-bit Ed25519 Curve Security</span>
+                    </div>
+                </motion.div>
             )}
 
-            {status === 'generating' && <p className="text-indigo-400 animate-pulse">Generating Cryptographic Material...</p>}
+            {status === 'generating' && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                    <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mx-auto"></div>
+                    <p className="text-indigo-400 font-mono text-sm animate-pulse">Running cryptography protocol...</p>
+                    <div className="text-left bg-black/50 p-4 rounded-lg border border-indigo-500/20 max-w-sm mx-auto font-mono text-xs text-indigo-300">
+                        <p className="opacity-75">{'>'} Generating 32 random bytes...</p>
+                        <p className="opacity-75">{'>'} Mapping scalar to Ristretto255 curve...</p>
+                        <p className="opacity-75">{'>'} Generating Schnorr ZKP...</p>
+                        <p className="opacity-75">{'>'} Transmitting pure Public Key...</p>
+                    </div>
+                </motion.div>
+            )}
 
             {status === 'submitted' && (
-                <div className="bg-emerald-500/10 p-6 rounded-xl border border-emerald-500/20 inline-block">
-                    <p className="text-emerald-400 font-bold mb-2">Public Key Submitted Successfully!</p>
-                    <p className="text-sm text-gray-400 mt-4">Waiting for other authorities to finish...</p>
-                </div>
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-emerald-500/10 p-8 rounded-2xl border border-emerald-500/20 inline-block w-full">
+                    <div className="flex justify-center mb-4">
+                        <CheckCircle2 size={48} className="text-emerald-400" />
+                    </div>
+                    <h4 className="text-white font-bold text-xl mb-2">Identity Established!</h4>
+                    <p className="text-emerald-400 text-sm mb-4">Your secret is securely locked on this device. Your public key was verified by the network.</p>
+
+                    <div className="bg-black/40 rounded-lg p-3 flex items-center gap-3 text-left">
+                        <Server className="text-gray-500" size={20} />
+                        <div>
+                            <p className="text-xs text-gray-500">Current Status</p>
+                            <p className="text-sm text-gray-300">Waiting for other authorities to finish Round 1...</p>
+                        </div>
+                    </div>
+                </motion.div>
             )}
         </div>
     );
