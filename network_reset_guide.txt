@@ -1,0 +1,38 @@
+# How to Reset the Network
+
+This guide provides the essential commands required to completely reset your 6-node Geth private network and start fresh.
+
+**1. Reset the Blockchain Data:**
+This script cleans the old blockchain data from all nodes and re-initializes them using your custom `genesis.json`.
+```bash
+python3 reset_network.py
+```
+
+**2. Restart the Node Containers:**
+After the data is reset, you must restart the Docker containers so they start up with the fresh state.
+```bash
+docker compose down && docker compose up -d
+```
+
+**3. Wait for the Network to Start! (IMPORTANT):**
+It takes 15 to 20 seconds for the nodes to discover each other, complete their connections, and for the signers to start proposing enough blocks to verify rotation. You must wait before running checks.
+```bash
+sleep 20
+```
+
+**4. Check Network Connectivity:**
+This script verifies that all nodes are up, connected to 5 peers, and whether the signers are mining.
+```bash
+python3 check_network.py
+```
+
+**5. Verify Network Integrity:**
+This script performs a deeper check to confirm that all 3 signer nodes are actively proposing and signing new blocks. (Note: This script requires at least ~10 blocks to have been mined to collect a valid sample, so the delay in step 3 is crucial).
+```bash
+python3 verify_network.py
+```
+
+**Summary of full command to run all at once:**
+```bash
+python3 reset_network.py && docker compose down && docker compose up -d && sleep 20 && python3 check_network.py && python3 verify_network.py
+```
