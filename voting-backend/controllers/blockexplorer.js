@@ -158,8 +158,10 @@ exports.viewElection = async (req, res) => {
                         const activity = await blockchainService.contract.getAuthorityActivity(
                             electionId, auth.authorityId
                         );
+                        // the smart contract saves this mapping by Authority 'idx' (zero-based internal array index), not 'authorityId'
+                        const authIndex = authorities.findIndex(a => Number(a.authorityId) === Number(auth.authorityId));
                         const pdHash = await blockchainService.contract.partialDecryptionhash(
-                            electionId, auth.authorityId
+                            electionId, authIndex !== -1 ? authIndex : 0
                         );
                         return {
                             authorityId: Number(auth.authorityId),
@@ -246,8 +248,9 @@ exports.viewElection = async (req, res) => {
             const activity = await blockchainService.contract.getAuthorityActivity(
                 electionId, myAuthId
             );
+            const authIndex = authorities.findIndex(a => Number(a.authorityId) === Number(myAuthId));
             const pdHash = await blockchainService.contract.partialDecryptionhash(
-                electionId, myAuthId
+                electionId, authIndex !== -1 ? authIndex : 0
             );
 
             authoritySection = {

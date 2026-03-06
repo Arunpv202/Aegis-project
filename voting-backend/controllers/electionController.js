@@ -185,6 +185,19 @@ exports.setupElection = async (req, res) => {
             return res.status(400).json({ message: 'Election already setup on blockchain' });
         }
 
+        // check that start_time < end_time < result_time
+        if (new Date(start_time) >= new Date(end_time) || new Date(end_time) >= new Date(result_time)) {
+            return res.status(400).json({ message: 'Invalid time configuration. Ensure start_time < end_time < result_time.' });
+        }
+        // start time must be in the future
+        if (new Date(start_time) <= new Date()) {
+            return res.status(400).json({ message: 'Start time must be in the future.' });
+        }
+        //atleast 2 authorities if authorities provided
+        if (authorities && authorities.length > 0 && authorities.length < 2) {
+            return res.status(400).json({ message: 'At least 2 authorities are required.' });
+        }
+
         // [BLOCKCHAIN MIGRATION] Step 2: Verify Authorities Uniqueness on Chain
         // Fetch current on-chain authorities to ensure we aren't adding duplicates
         const onChainAuthorities = await blockchainService.getAuthorities(election_id);
