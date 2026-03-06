@@ -1,0 +1,68 @@
+# How to Interact with Your Private IPFS Network
+
+This guide shows you exactly how to add files (like photos, PDFs, or text) into your private IPFS network, and how to download them back to your computer from ANY node in the network.
+
+---
+
+## Part 1: Storing a File into IPFS (Adding)
+
+Because your IPFS nodes are running securely inside isolated Docker containers, they cannot see the files on your computer natively. We have to do things in two steps:
+
+### Scenario: We want to store a picture called `Architecture.png`.
+
+**Step 1: Copy the file into the Node 1 container**
+```bash
+docker cp "Architecture.png" node1:"/tmp/Architecture.png"
+```
+* **Explanation**: This literally copies the file from your computer's current folder directly into a temporary folder (`/tmp`) inside Node 1.
+
+**Step 2: Tell Node 1 to add it to the IPFS Swarm**
+```bash
+docker exec node1 ipfs add -Q "/tmp/Architecture.png"
+```
+* **Explanation**: `docker exec node1` tells Docker to run a command inside the Node 1 container. `ipfs add` is the command that encrypts and slices your file, adding it to the IPFS database. The `-Q` flag tells it to print *only* the final hash so it's easy to read.
+* **Output Example**: `QmUys3G12Jd1Vo8PmTkvHYbi6FudpVM7EEQvKvpy4q6fLR`
+* **Important**: Save that long hash (called a CID). It is the permanent, unchangeable ID for your specific file.
+
+---
+
+## Part 2: Retrieving a File from IPFS (Fetching)
+
+Now the file lives inside IPFS! If Node 2, Node 3, or Node 4 wants that file, they can fetch it using perfectly secure peer-to-peer data transfers.
+
+Let's say we want to use **Node 3** to download the file back to our computer. 
+
+There are two ways to do this.
+
+### Method A: Stream the file directly (The Fastest Way)
+
+You can tell Node 3 to read the file from the network and instantly stream the raw data directly to a new file on your main computer's hard drive.
+
+```bash
+docker exec node3 ipfs cat QmUys3G12Jd1Vo8PmTkvHYbi6FudpVM7EEQvKvpy4q6fLR > "My_Downloaded_Architecture.png"
+```
+* **Explanation**: `docker exec node3 ipfs cat <HASH>` tells Node 3 to find and read the contents of the hash from the network. The `> "My_Downloaded_Architecture.png"` part catches that data as it prints out and saves it as a brand new image file directly on your normal computer!
+
+### Method B: The Two-Step Download (Using IPFS Get)
+
+Alternative method: you can have Node 3 download the file entirely into its own container, and then copy it out.
+
+**Step 1: Tell Node 3 to download the file into its own temp folder**
+```bash
+docker exec node3 ipfs get QmUys3G12Jd1Vo8PmTkvHYbi6FudpVM7EEQvKvpy4q6fLR -o "/tmp/Downloaded.png"
+```
+* **Explanation**: Node 3 connects to Node 1, transfers the blocks, and saves the complete file to `/tmp/Downloaded.png` inside its own Docker container.
+
+**Step 2: Copy the downloaded file out of Node 3 onto your computer**
+```bash
+docker cp node3:"/tmp/Downloaded.png" "./My_Downloaded_Architecture.png"
+```
+* **Explanation**: This transfers the assembled file from the container into whatever folder you are currently looking at on your terminal.
+
+---
+
+## Summary of the IPFS Commands
+
+* `ipfs add <file>` : Stores a piece of data onto the IPFS network and generates the CID hash.
+* `ipfs cat <CID>` : Reads data from the network and streams it to your terminal (usually piped to a file `> file.txt`).
+* `ipfs get <CID>` : Downloads the data from the network and completely saves it to disk (inside the container).

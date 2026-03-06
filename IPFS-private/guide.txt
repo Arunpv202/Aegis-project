@@ -1,0 +1,111 @@
+# How to Build a Private IPFS Network using Docker
+
+This guide explains in simple language how we built a perfectly isolated 4-node private IPFS network. You can use this to teach your friends exactly what each piece does!
+
+---
+
+## 1. What is IPFS and what makes it _Private_?
+
+**IPFS (InterPlanetary File System)** is usually a giant, public, worldwide network where everyone shares files (like a massive global BitTorrent).
+
+But what if you only want to share files securely with your friends, without the whole world seeing them? That's what a **Private IPFS Network** is. It builds a walled garden. Nodes inside your private network will _only_ talk to other nodes that have the exact same secret password.
+
+---
+
+## 2. The Secret Password: `swarm.key`
+
+To make the network private, we created a file called `swarm.key`.
+
+**What is it?**
+It is basically a cryptographic passcode. Every IPFS node checks this file when it turns on. If another node tries to connect, they both check if their `swarm.key` matches. If it doesn't match, they instantly block the connection.
+
+Our `swarm.key` looks like this:
+
+```text
+/key/swarm/psk/1.0.0/
+/base16/
+831210bbf4e3215be11b8b2bafeabdd8ccfb0686ecaf3efeb3ca124e4d5fb1f6
+```
+
+This guarantees that your 4 nodes will _never_ accidentally connect to the massive public IPFS network.
+
+---
+
+## 3. The Blueprint: `Dockerfile`
+
+Usually, when you run software in Docker, it forgets everything when you delete the container. For our specific setup, we wanted Docker to store the IPFS files _inside_ the container, but we also needed to add our secret `swarm.key` and our custom startup rules.
+
+The `Dockerfile` is a blueprint that builds our custom IPFS node.
+
+**What does each line do?**
+
+- `FROM ipfs/kubo:latest`: "Grab the official IPFS software."
+- `RUN mkdir -p /ipfs_data ...`: "Create a custom folder (`/ipfs_data`) deep inside the container so Docker doesn't accidentally save data to your main hard drive using normal volumes."
+- `COPY swarm.key ...`: "Take our secret password file and put it inside the container."
+- `COPY entrypoint.sh ...`: "Take our custom startup script and put it inside the container."
+- `ENV IPFS_PATH=/ipfs_data`: "Tell the IPFS software to _only_ save downloaded files and settings in our custom folder."
+
+---
+
+## 4. The Orchestrator: `docker-compose.yml`
+
+Instead of typing 4 huge Docker commands to start 4 separate nodes, we use Docker Compose. It is an orchestrator that maps out the entire network.
+
+**What does it do?**
+
+- **`services:`** It defines `node1`, `node2`, `node3`, and `node4`.
+- **`build: .`** Tells Docker to use our custom `Dockerfile` blueprint for every node.
+- **`ports:`** (e.g., `"5020:5001"`) Maps the IPFS API port (5001) from inside the container to your computer so you can send commands to it (like `ipfs add`). Node 1 gets 5020, Node 2 gets 5021, etc.
+- **`depends_on:`** Forces `node2`, `node3`, and `node4` to wait until `node1` is created. `node1` acts as our "anchor" or "bootstrap" that everyone else connects to.
+- **`networks:`** Creates a private virtual router inside Docker (`ipfs-net`) so the 4 nodes can ping each other using their names.
+
+---
+
+## 5. The Brains: `entrypoint.sh`
+
+This script runs every time a container boots up. It is the core "brain" that configures the IPFS software to act as a private cluster.
+
+**What does it do?**
+
+1. **`ipfs init --profile=server`**: It sets up IPFS for the first time, using a 'server' profile which is optimized for running inside data centers/containers.
+2. **`cp /custom/swarm.key "$IPFS_PATH/swarm.key"`**: It activates our secret password.
+3. **`ipfs bootstrap rm --all`**: By default, IPFS tries to connect to public servers run by Protocol Labs (the creators of IPFS). This command aggressively deletes those public servers from its memory.
+4. **`ipfs config --json Discovery.MDNS.Enabled true`**: Turns on a radar (mDNS) that automatically detects other IPFS nodes running on the exact same local Wi-Fi/Docker network.
+5. **Connecting to Node 1**: If the turning-on container is NOT `node1` (e.g., it is `node2`), it runs a loop to ask `node1` for its unique identity ID. Once it gets it, it runs `ipfs bootstrap add <node1_id>`. This tells `node2`: _"Hey, when you start, immediately connect to node1 to join the private mesh network!"_
+
+---
+
+## 6. How it All Pieces Together (Commands)
+
+When you run:
+**`docker compose up -d`**
+
+1. Docker reads `docker-compose.yml`.
+2. It builds the IPFS image using your `Dockerfile`.
+3. It creates a virtual router.
+4. It starts `node1`. `node1` runs `entrypoint.sh`, creates its database, deletes public trackers, and turns on.
+5. It starts `node2, 3, 4`. They run `entrypoint.sh`, wipe public trackers, ping `node1` for its ID, and wire themselves permanently to `node1`.
+6. Now you have a perfectly isolated 4-node swarm!
+
+### How to use the network:
+
+**To store a file:**
+Because your data is trapped inside Docker, you must copy it into the container first.
+
+```bash
+# 1. Send the file from your computer into node1's temporary folder
+docker cp "my_file.txt" node1:"/tmp/my_file.txt"
+
+# 2. Tell node1 to encrypt it, chop it into chunks, and announce it to the network!
+docker exec node1 ipfs add -Q "/tmp/my_file.txt"
+```
+
+_(This spits out a CID hash: `Qm...`)_
+
+**To retrieve a file using a completely different node (Node 3):**
+Node 3 doesn't have the file yet! But when you ask it for the hash, it will yell across the private network: _"Who has this hash?"_. Node 1 will respond and stream it over the peer-to-peer connection.
+
+```bash
+# Tell Node 3 to download the hash and save it directly onto your computer
+docker exec node3 ipfs cat Qm... > "Downloaded_File.txt"
+```
